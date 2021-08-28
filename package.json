@@ -1,6 +1,6 @@
 {
   "name": "remotequery-ts-mysql",
-  "version": "0.0.1",
+  "version": "0.0.5",
   "description": "Remotequery MySql Driver for TypeScript",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -34,8 +34,7 @@
     "camelcase": "^5.3.1",
     "mysql": "^2.18.1",
     "pino": "^6.13.1",
-    "pino-pretty": "^4.3.0",
-    "remotequery": "^0.0.1"
+    "pino-pretty": "^4.3.0"
   },
   "devDependencies": {
     "@types/chai": "^4.2.21",
@@ -43,11 +42,14 @@
     "@types/mysql": "^2.15.19",
     "@types/node": "^16.7.2",
     "@types/pino": "^6.3.11",
+    "@typescript-eslint/eslint-plugin": "^4.29.3",
+    "@typescript-eslint/parser": "^4.29.3",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^3.4.1",
     "mocha": "^9.1.0",
     "prettier": "^2.3.2",
+    "remotequery-ts": "latest",
     "ts-node": "^10.2.1",
     "tslint": "^6.1.3",
     "tslint-config-prettier": "^1.18.0",

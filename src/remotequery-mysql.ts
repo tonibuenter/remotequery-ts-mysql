@@ -1,13 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any,@typescript-eslint/explicit-module-boundary-types */
 /* tslint:disable:no-string-literal */
 /* tslint:disable:one-variable-per-declaration */
 /* tslint:disable:only-arrow-functions */
+/* tslint:disable:no-explicit-any */
 
 import * as pino from 'pino';
 import * as mysql from 'mysql';
-import { Connection, FieldInfo, MysqlError } from 'mysql';
+import { Connection, FieldInfo, MysqlError, Pool } from 'mysql';
 
 import * as camelCase from 'camelCase';
-import { Result } from './types';
+import { Result } from 'remotequery-ts';
 
 export const Config: any = {
   user: null,
@@ -27,7 +29,7 @@ Config.initPool = () => {
   }));
 };
 
-export function init({ user, password, host, database, logger, sqlLogger }: any) {
+export function init({ user, password, host, database, logger, sqlLogger }: any): Pool {
   Config.user = user;
   Config.password = password;
   Config.host = host;
@@ -94,18 +96,18 @@ Config.datasource = {
 // PROCESS SQL CON PLUGIN - for mysql
 //
 
-export const isalnum = (ch: any) => {
+export const isalnum = (ch: string) => {
   return ch.match(/^[a-z0-9]+$/i) !== null;
 };
 
-export async function processSql(sql: any, parameters: {} | undefined, maxRows: number | undefined) {
-  let con, result;
+export async function processSql(sql: any, parameters?: any, context?: any): Promise<Result> {
+  let con, result: Result;
   try {
     con = await Config.datasource.getConnection();
-    result = await processSql_con(con, sql, parameters, maxRows);
+    result = await processSql_con(con, sql, parameters, context?.maxRows);
   } catch (err: any) {
     Config.logger.info(err.stack);
-    result = { exception: err.message, stack: err.stack };
+    result = { exception: err.message, stack: err.stack, hasMore: false };
   } finally {
     Config.datasource.returnConnection(con);
   }
@@ -146,7 +148,7 @@ export function namedParameters2QuestionMarks(
       return mtch;
     }
     let p = parameters[key];
-    p = typeof p === 'string' ? p.trim() : typeof (p === 'number') ? p : p === null || p === undefined ? '' : p;
+    p = typeof p === 'string' ? p.trim() : typeof p === 'number' ? p : p === null || p === undefined ? '' : p;
     let qms = '';
     if (brck === '[]' || Array.isArray(p)) {
       const vArray = Array.isArray(p) ? p : typeof p === 'string' ? p.split(/\s*,\s*/) : [p];
@@ -168,17 +170,17 @@ export function namedParameters2QuestionMarks(
   return { sqlQm, parametersUsed, values };
 }
 
-export async function processSql_con(con: any, sql: string, parameters = {}, maxRows = 10000) {
+export function processSql_con(con: any, sql: string, parameters = {}, maxRows = 10000): Promise<Result> {
   Config.sqlLogger.debug('start sql **************************************');
   Config.sqlLogger.debug('sql: %s', sql);
   const { sqlQm, parametersUsed, values } = namedParameters2QuestionMarks(sql, parameters);
 
   const valuesMapped = values.map((v) => (v === undefined || v === null ? '' : v));
   Config.sqlLogger.info('sql-parametersUsed: ', JSON.stringify(parametersUsed, undefined, ' '));
-  return await processSqlQuery(con, sqlQm, valuesMapped, maxRows);
+  return processSqlQuery(con, sqlQm, valuesMapped, maxRows);
 }
 
-export function processSqlQuery(con: Connection, sql: string, values: any[], maxRows: number) {
+export function processSqlQuery(con: Connection, sql: string, values: any[], maxRows: number): Promise<Result> {
   return new Promise((resolve) => {
     con.query(sql, values, process_result);
 

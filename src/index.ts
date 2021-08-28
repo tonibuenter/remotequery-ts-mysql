@@ -1,4 +1,5 @@
 import {
+  Config,
   init,
   isalnum,
   namedParameters2QuestionMarks,
@@ -7,4 +8,4 @@ import {
   processSqlQuery
 } from './remotequery-mysql';
 
-export { processSql, processSqlDirect, namedParameters2QuestionMarks, processSqlQuery, init, isalnum };
+export { processSql, processSqlDirect, namedParameters2QuestionMarks, processSqlQuery, init, isalnum, Config };
