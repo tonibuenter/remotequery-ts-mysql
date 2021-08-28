@@ -1,1 +1,1 @@
-# Welcome to RemoteQuery for Typescript
+# Welcome to RemoteQuery MySql Driver for Typescript
