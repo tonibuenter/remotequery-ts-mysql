@@ -1,11 +1,24 @@
-// export type Result = {
-//   types?: string[];
-//   headerSql?: string[];
-//   header?: string[];
-//   table?: string[][];
-//   rowsAffected?: number;
-//   exception?: string;
-//   from?: number;
-//   hasMore?: boolean;
-//   stack?: string | undefined;
-// };
+import { Logger, ProcessSql, Result } from 'remotequery-ts';
+import { Pool, PoolConnection } from 'mysql';
+
+export type InitProps = { user: string; password: string; host: string; database: string };
+export type ConfigType = {
+  user: string;
+  password: string;
+  host: string;
+  database: string;
+  sqlLogger: Logger;
+  logger: Logger;
+  pool?: Pool;
+  getConnection: () => Promise<PoolConnection>;
+  returnConnection: (con: PoolConnection) => void;
+};
+
+export interface MySqlDriver {
+  getConnection: () => Promise<PoolConnection | undefined>;
+  returnConnection: any; // (con: PoolConnection) => void;
+  processSql: ProcessSql;
+  processSqlDirect: (sql: string, values: any, maxRows: number) => Promise<Result>;
+  logger: Logger;
+  sqlLogger: Logger;
+}

@@ -4,93 +4,72 @@
 /* tslint:disable:only-arrow-functions */
 /* tslint:disable:no-explicit-any */
 
-import * as pino from 'pino';
-import * as mysql from 'mysql';
-import { Connection, FieldInfo, MysqlError, Pool } from 'mysql';
+import { createPool, FieldInfo, MysqlError, Pool, PoolConnection } from 'mysql';
 
 import * as camelCase from 'camelCase';
-import { Result } from 'remotequery-ts';
+import { Logger, ProcessSql, Result } from 'remotequery-ts';
+import { ConfigType, InitProps } from './types';
 
-export const Config: any = {
-  user: null,
-  password: null,
-  host: 'localhost',
-  database: 'jground',
-  logger: null,
-  sqlLogger: null
+export const consoleLogger: Logger = {
+  // tslint:disable-next-line:no-console
+  debug: (msg: string) => console.debug(msg),
+  // tslint:disable-next-line:no-console
+  info: (msg: string) => console.info(msg),
+  // tslint:disable-next-line:no-console
+  warn: (msg: string) => console.warn(msg),
+  // tslint:disable-next-line:no-console
+  error: (msg: string) => console.error(msg)
 };
 
-Config.initPool = () => {
-  return (Config.pool = mysql.createPool({
-    host: Config.host,
-    user: Config.user,
-    password: Config.password,
-    database: Config.database
-  }));
+export const Config: ConfigType = {
+  user: 'unset',
+  password: 'unset',
+  host: 'unset',
+  database: 'unset',
+  logger: consoleLogger,
+  sqlLogger: consoleLogger,
+  getConnection: () =>
+    new Promise((resolve, reject) => {
+      if (!Config.pool) {
+        reject('Pool not initialized');
+      } else {
+        Config.pool.getConnection(function (err: MysqlError | null, conn: PoolConnection) {
+          if (err) {
+            reject(err);
+            return;
+          }
+          if (conn) {
+            Config.logger.debug('getConnection DONE');
+            resolve(conn);
+          }
+        });
+      }
+    }),
+  returnConnection: (con: PoolConnection) => {
+    try {
+      if (Config.pool) {
+        con.release();
+      }
+    } catch (e) {
+      Config.logger.error(`returnConnection -> ${e}`);
+    }
+    Config.logger.debug(`returnConnection DONE`);
+  }
 };
 
-export function init({ user, password, host, database, logger, sqlLogger }: any): Pool {
+export function init({ user, password, host, database }: InitProps): Pool {
   Config.user = user;
   Config.password = password;
   Config.host = host;
   Config.database = database;
-  Config.logger =
-    logger ||
-    pino({
-      level: 'info',
-      prettyPrint: {
-        colorize: true
-      }
-    });
-  Config.sqlLogger =
-    sqlLogger ||
-    pino({
-      level: 'info',
-      prettyPrint: {
-        colorize: true
-      }
-    });
-  return Config.initPool();
+  Config.pool = createPool({
+    host: Config.host,
+    user: Config.user,
+    password: Config.password,
+    database: Config.database
+  });
+  return Config.pool;
 }
-
-Config.logger = pino({
-  level: 'info',
-  prettyPrint: {
-    colorize: true
-  }
-});
-
-Config.sqlLogger = pino({
-  level: 'info',
-  prettyPrint: {
-    colorize: true
-  }
-});
-
-Config.datasource = {
-  getConnection() {
-    return new Promise((resolve, reject) => {
-      Config.pool.getConnection(function (err: MysqlError | null, conn: Connection) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        if (conn) {
-          Config.logger.debug('getConnection DONE');
-          resolve(conn);
-        }
-      });
-    });
-  },
-  returnConnection(con: { release: () => void }) {
-    try {
-      con.release();
-    } catch (e) {
-      Config.logger.error('returnConnection ->', e);
-    }
-    Config.logger.debug('returnConnection DONE');
-  }
-};
 
 //
 // PROCESS SQL CON PLUGIN - for mysql
@@ -99,46 +78,53 @@ Config.datasource = {
 export const isalnum = (ch: string) => {
   return ch.match(/^[a-z0-9]+$/i) !== null;
 };
-
-export async function processSql(sql: any, parameters?: any, context?: any): Promise<Result> {
+export const processSql: ProcessSql = async (
+  sql: string,
+  parameters?: Record<string, string>,
+  context?: any
+): Promise<Result> => {
   let con, result: Result;
   try {
-    con = await Config.datasource.getConnection();
+    con = await Config.getConnection();
     result = await processSql_con(con, sql, parameters, context?.maxRows);
   } catch (err: any) {
     Config.logger.info(err.stack);
     result = { exception: err.message, stack: err.stack, hasMore: false };
   } finally {
-    Config.datasource.returnConnection(con);
+    if (con) {
+      Config.returnConnection(con);
+    }
   }
   return result;
-}
+};
 
 export async function processSqlDirect(sql: string, values = [], maxRows: number) {
-  let con, result;
+  let con: PoolConnection | undefined, result;
   try {
-    con = await Config.datasource.getConnection();
+    con = await Config.getConnection();
     result = await processSqlQuery(con, sql, values, maxRows);
   } catch (err: any) {
     Config.logger.error(err.stack);
     result = { exception: err.message, stack: err.stack };
   } finally {
-    Config.datasource.returnConnection(con);
+    if (con) {
+      Config.returnConnection(con);
+    }
   }
   return result;
 }
 
 export function namedParameters2QuestionMarks(
   sql: string,
-  parameters: Record<string, string>,
-  logger?: any
+  parameters: Record<string, string | number | string[] | number[]>,
+  logger?: Logger
 ): { sqlQm: string; parametersUsed: any; values: any[] } {
   let inquote = false;
   const parametersUsed: any = {};
   const values: any[] = [];
   const sqlQm = sql.replace(/:([0-9a-zA-Z$_]+)(\[])?|(')/g, function (mtch, key, brck, quote) {
     if (logger) {
-      logger(mtch, key, brck, quote);
+      logger.debug(`${mtch}, ${key}, ${brck}, ${quote}`);
     }
     if (quote) {
       inquote = !inquote;
@@ -170,17 +156,17 @@ export function namedParameters2QuestionMarks(
   return { sqlQm, parametersUsed, values };
 }
 
-export function processSql_con(con: any, sql: string, parameters = {}, maxRows = 10000): Promise<Result> {
+export function processSql_con(con: PoolConnection, sql: string, parameters = {}, maxRows = 10000): Promise<Result> {
   Config.sqlLogger.debug('start sql **************************************');
-  Config.sqlLogger.debug('sql: %s', sql);
+  Config.sqlLogger.debug(`sql: ${sql}`);
   const { sqlQm, parametersUsed, values } = namedParameters2QuestionMarks(sql, parameters);
 
   const valuesMapped = values.map((v) => (v === undefined || v === null ? '' : v));
-  Config.sqlLogger.info('sql-parametersUsed: ', JSON.stringify(parametersUsed, undefined, ' '));
+  Config.sqlLogger.info(`sql-parametersUsed: ${JSON.stringify(parametersUsed, undefined, ' ')}`);
   return processSqlQuery(con, sqlQm, valuesMapped, maxRows);
 }
 
-export function processSqlQuery(con: Connection, sql: string, values: any[], maxRows: number): Promise<Result> {
+export function processSqlQuery(con: PoolConnection, sql: string, values: any[], maxRows: number): Promise<Result> {
   return new Promise((resolve) => {
     con.query(sql, values, process_result);
 
@@ -191,13 +177,13 @@ export function processSqlQuery(con: Connection, sql: string, values: any[], max
       // result.totalCount = -1;
       result.hasMore = false;
 
-      Config.logger.debug(sql, 'DONE');
+      Config.logger.debug(`${sql} DONE`);
 
       if (err) {
         result.exception = err.message;
         result.stack = err.stack;
         resolve(result);
-        Config.logger.warn(err.message + '\nsql: ' + sql);
+        Config.logger.warn(`${err.message}\nsql: ${sql} `);
         resolve(result);
       } else {
         // see also https://www.w3schools.com/nodejs/nodejs_mysql_select.asp
@@ -206,7 +192,7 @@ export function processSqlQuery(con: Connection, sql: string, values: any[], max
         result.types = [];
         result.table = [];
         result.rowsAffected = res.affectedRows;
-        Config.logger.debug('Rows affected: %s', result.rowsAffected);
+        Config.logger.debug(`Rows affected: ${result.rowsAffected}`);
         if (fields) {
           for (const field of fields) {
             result.headerSql.push(field.name);

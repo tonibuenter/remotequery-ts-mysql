@@ -8,4 +8,19 @@ import {
   processSqlQuery
 } from './remotequery-mysql';
 
-export { processSql, processSqlDirect, namedParameters2QuestionMarks, processSqlQuery, init, isalnum, Config };
+import type { ConfigType, InitProps, MySqlDriver } from './types';
+import { newInstance } from './MySqlDriver';
+
+export {
+  ConfigType,
+  processSql,
+  processSqlDirect,
+  namedParameters2QuestionMarks,
+  processSqlQuery,
+  init,
+  isalnum,
+  Config,
+  InitProps,
+  MySqlDriver,
+  newInstance
+};

@@ -1,5 +1,5 @@
-const { processSqlDirect, processSql, init } = require('../remotequery-mysql');
-const assert = require('chai').assert;
+import { init, processSql, processSqlDirect } from '../src';
+import { after, assert, before, describe, it } from 'chai';
 
 let pool;
 before(async () => {
@@ -8,7 +8,7 @@ before(async () => {
 });
 
 describe('sql-stuff', function () {
-  const pool = init({ user: 'foo', password: 'bar', database: 'schnauz', host: 'localhost' });
+  init({ user: 'foo', password: 'bar', database: 'schnauz', host: 'localhost' });
 
   describe('test1', function () {
     it('test-processSqlDirect', async function () {
