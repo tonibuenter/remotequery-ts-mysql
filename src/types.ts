@@ -14,7 +14,7 @@ export type ConfigType = {
   returnConnection: (con: PoolConnection) => void;
 };
 
-export interface MySqlDriver {
+export interface RqDriver {
   getConnection: () => Promise<PoolConnection | undefined>;
   returnConnection: any; // (con: PoolConnection) => void;
   processSql: ProcessSql;

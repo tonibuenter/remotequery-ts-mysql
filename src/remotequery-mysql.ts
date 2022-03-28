@@ -6,7 +6,7 @@
 
 import { createPool, FieldInfo, MysqlError, Pool, PoolConnection } from 'mysql';
 
-import * as camelCase from 'camelCase';
+import camelCase from 'camelCase';
 import { Logger, ProcessSql, Result } from 'remotequery-ts';
 import { ConfigType, InitProps } from './types';
 
@@ -98,11 +98,11 @@ export const processSql: ProcessSql = async (
   return result;
 };
 
-export async function processSqlDirect(sql: string, values = [], maxRows: number) {
+export async function processSqlDirect(sql: string, values: any, maxRows: number) {
   let con: PoolConnection | undefined, result;
   try {
     con = await Config.getConnection();
-    result = await processSqlQuery(con, sql, values, maxRows);
+    result = await processSqlQuery(con, sql, values || [], maxRows);
   } catch (err: any) {
     Config.logger.error(err.stack);
     result = { exception: err.message, stack: err.stack };
@@ -174,7 +174,6 @@ export function processSqlQuery(con: PoolConnection, sql: string, values: any[],
       const result: Result = { from: 0, hasMore: false, rowsAffected: 0 };
       result.rowsAffected = -1;
       result.from = 0;
-      // result.totalCount = -1;
       result.hasMore = false;
 
       Config.logger.debug(`${sql} DONE`);
@@ -192,27 +191,37 @@ export function processSqlQuery(con: PoolConnection, sql: string, values: any[],
         result.types = [];
         result.table = [];
         result.rowsAffected = res.affectedRows;
+        result.hasMore = false;
         Config.logger.debug(`Rows affected: ${result.rowsAffected}`);
         if (fields) {
-          for (const field of fields) {
-            result.headerSql.push(field.name);
-            result.header.push(camelCase(field.name));
-            result.types.push(field.type ? field.type.toString() : '');
-          }
-          for (const row of res) {
-            const trow = [];
-            for (const head of result.headerSql) {
-              trow.push(row[head]);
-            }
-            if (maxRows === result.table.length) {
-              result.hasMore = true;
-              break;
-            }
-            result.table.push(trow);
-          }
+          processingFields(maxRows, res, fields, result as any);
         }
         resolve(result);
       }
     }
   });
+}
+
+function processingFields(
+  maxRows: number,
+  res: any,
+  fields: FieldInfo[],
+  result: { headerSql: string[]; types: string[]; header: string[]; table: any[]; hasMore: boolean }
+) {
+  for (const field of fields) {
+    result.headerSql.push(field.name);
+    result.header.push(camelCase(field.name));
+    result.types.push(field.type ? field.type.toString() : '');
+  }
+  for (const row of res) {
+    const trow = [];
+    for (const head of result.headerSql) {
+      trow.push(row[head]);
+    }
+    if (maxRows === result.table.length) {
+      result.hasMore = true;
+      break;
+    }
+    result.table.push(trow);
+  }
 }

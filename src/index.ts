@@ -8,8 +8,8 @@ import {
   processSqlQuery
 } from './remotequery-mysql';
 
-import type { ConfigType, InitProps, MySqlDriver } from './types';
-import { newInstance } from './MySqlDriver';
+import type { ConfigType, InitProps } from './types';
+import MySqlRqDriver from './MySqlRqDriver';
 
 export {
   ConfigType,
@@ -21,6 +21,5 @@ export {
   isalnum,
   Config,
   InitProps,
-  MySqlDriver,
-  newInstance
+  MySqlRqDriver
 };
