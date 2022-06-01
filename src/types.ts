@@ -15,8 +15,8 @@ export type ConfigType = {
 };
 
 export interface RqDriver {
-  getConnection: () => Promise<PoolConnection | undefined>;
-  returnConnection: any; // (con: PoolConnection) => void;
+  getConnection: () => Promise<any>;
+  returnConnection: (connection: any) => void; // (con: PoolConnection) => void;
   processSql: ProcessSql;
   processSqlDirect: (sql: string, values: any, maxRows: number) => Promise<Result>;
   logger: Logger;
