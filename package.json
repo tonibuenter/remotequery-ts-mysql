@@ -1,6 +1,6 @@
 {
   "name": "remotequery-ts-mysql",
-  "version": "0.0.8.0",
+  "version": "0.0.8",
   "description": "Remotequery MySql Driver for TypeScript",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
