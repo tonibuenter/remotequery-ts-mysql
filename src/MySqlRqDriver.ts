@@ -11,7 +11,7 @@ import { consoleLogger, Logger, Result } from 'remotequery-ts';
 import { namedParameters2QuestionMarks } from './remotequery-mysql';
 import { RqDriver } from './types';
 
-class MySqlRqDriver implements RqDriver {
+export class MySqlRqDriver implements RqDriver {
   public pool;
   public logger: Logger = consoleLogger;
   public sqlLogger = consoleLogger;
