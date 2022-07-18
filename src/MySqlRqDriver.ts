@@ -7,9 +7,8 @@
 import { createPool, FieldInfo, MysqlError, PoolConfig, PoolConnection } from 'mysql';
 
 import * as camelCase from 'camelCase';
-import { consoleLogger, Logger, Result } from 'remotequery-ts';
-import { namedParameters2QuestionMarks } from './remotequery-mysql';
-import { RqDriver } from './types';
+import { consoleLogger, namedParameters2QuestionMarks } from './remotequery-mysql';
+import { Logger, Result, RqDriver } from './remotequery-types';
 
 export class MySqlRqDriver implements RqDriver {
   public pool;

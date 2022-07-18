@@ -7,8 +7,8 @@
 import { createPool, FieldInfo, MysqlError, Pool, PoolConnection } from 'mysql';
 
 import camelCase from 'camelCase';
-import { Logger, ProcessSql, Result } from 'remotequery-ts';
 import { ConfigType, InitProps } from './types';
+import { Logger, ProcessSql, Result } from './remotequery-types';
 
 export const consoleLogger: Logger = {
   // tslint:disable-next-line:no-console
@@ -98,7 +98,7 @@ export const processSql: ProcessSql = async (
   return result;
 };
 
-export async function processSqlDirect(sql: string, values: any, maxRows: number) {
+export async function processSqlDirect(sql: string, values = [], maxRows = 10000): Promise<Result> {
   let con: PoolConnection | undefined, result;
   try {
     con = await Config.getConnection();
