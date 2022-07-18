@@ -8,7 +8,7 @@ import { createPool, FieldInfo, MysqlError, Pool, PoolConnection } from 'mysql';
 
 import camelCase from 'camelCase';
 import { ConfigType, InitProps } from './types';
-import { Logger, ProcessSql, Result } from './remotequery-types';
+import { Logger, ProcessSql, Result, Simple } from './remotequery-types';
 
 export const consoleLogger: Logger = {
   // tslint:disable-next-line:no-console
@@ -80,7 +80,7 @@ export const isalnum = (ch: string) => {
 };
 export const processSql: ProcessSql = async (
   sql: string,
-  parameters?: Record<string, string>,
+  parameters?: Record<string, Simple>,
   context?: any
 ): Promise<Result> => {
   let con, result: Result;

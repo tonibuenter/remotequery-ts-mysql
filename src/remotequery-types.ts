@@ -1,13 +1,13 @@
-// ORIGIN remotequery-ts
-
 /* tslint:disable:no-string-literal */
 /* eslint-disable @typescript-eslint/no-explicit-any,@typescript-eslint/explicit-module-boundary-types */
+
+export type Simple = string | number | boolean;
 
 export type Request = {
   userId?: string;
   roles?: string[];
   serviceId: string;
-  parameters: Record<string, string>;
+  parameters: Record<string, Simple>;
 };
 
 export type Context = {
@@ -72,7 +72,7 @@ export type CommandsType = {
   Registry: Record<RegistryType, any>;
 };
 
-export type ProcessSql = (sql: string, parameters?: Record<string, string>, context?: any) => Promise<Result>;
+export type ProcessSql = (sql: string, parameters?: Record<string, Simple>, context?: any) => Promise<Result>;
 
 export type LoggerLevel = 'debug' | 'info' | 'warn' | 'error';
 export type LoggerFun = (msg: string) => void;
@@ -99,3 +99,17 @@ export interface RqDriver {
   logger: Logger;
   sqlLogger: Logger;
 }
+
+export function exceptionResult(e: string | Error | unknown): ExceptionResult {
+  if (isError(e)) {
+    return { exception: e.message, stack: e.stack };
+  } else if (typeof e === 'string') {
+    return { exception: e };
+  }
+  return { exception: 'Unknown' };
+}
+
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export const isExceptionResult = (data: any): data is ExceptionResult => {
+  return data && typeof data.exception === 'string';
+};

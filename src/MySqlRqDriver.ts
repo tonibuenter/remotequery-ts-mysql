@@ -8,7 +8,7 @@ import { createPool, FieldInfo, MysqlError, PoolConfig, PoolConnection } from 'm
 
 import * as camelCase from 'camelCase';
 import { consoleLogger, namedParameters2QuestionMarks } from './remotequery-mysql';
-import { Logger, Result, RqDriver } from './remotequery-types';
+import { Logger, Result, RqDriver, Simple } from './remotequery-types';
 
 export class MySqlRqDriver implements RqDriver {
   public pool;
@@ -50,7 +50,7 @@ export class MySqlRqDriver implements RqDriver {
     this.logger.debug(`returnConnection DONE`);
   }
 
-  public async processSql(sql: string, parameters?: Record<string, string>, context?: any): Promise<Result> {
+  public async processSql(sql: string, parameters?: Record<string, Simple>, context?: any): Promise<Result> {
     let con, result: Result;
     try {
       con = await this.getConnection();
