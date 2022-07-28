@@ -12,13 +12,13 @@ import { Logger, ProcessSql, Result, Simple } from './remotequery-types';
 
 export const consoleLogger: Logger = {
   // tslint:disable-next-line:no-console
-  debug: (msg: string) => console.debug(msg),
+  debug: (msg: string) => console.debug('debug', msg),
   // tslint:disable-next-line:no-console
-  info: (msg: string) => console.info(msg),
+  info: (msg: string) => console.info('info', msg),
   // tslint:disable-next-line:no-console
-  warn: (msg: string) => console.warn(msg),
+  warn: (msg: string) => console.warn('warn', msg),
   // tslint:disable-next-line:no-console
-  error: (msg: string) => console.error(msg)
+  error: (msg: string) => console.error('error', msg)
 };
 
 export const Config: ConfigType = {

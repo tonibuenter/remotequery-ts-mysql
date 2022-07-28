@@ -95,7 +95,7 @@ export class MySqlRqDriver implements RqDriver {
     const { sqlQm, parametersUsed, values } = namedParameters2QuestionMarks(sql, parameters);
 
     const valuesMapped = values.map((v) => (v === undefined || v === null ? '' : v));
-    this.sqlLogger.info(`sql-parametersUsed: ${JSON.stringify(parametersUsed)}`);
+    this.sqlLogger.info(`sql-parameters-used: ${JSON.stringify(parametersUsed)}`);
     return this.processSqlQuery(con, sqlQm, valuesMapped, maxRows);
   }
 
@@ -105,19 +105,16 @@ export class MySqlRqDriver implements RqDriver {
       con.query(sql, values, processResult);
 
       function processResult(err: MysqlError | null, res?: any, fields?: FieldInfo[]) {
-        const result: Result = { from: 0, hasMore: false, rowsAffected: 0 };
-        result.rowsAffected = -1;
+        const result: Result = { from: 0, hasMore: false, rowsAffected: -1 };
         result.from = 0;
         result.hasMore = false;
-
         logger.debug(`${sql} DONE`);
-
         if (err) {
           result.exception = err.message;
           result.stack = err.stack;
           logger.warn(`${err.message}\nsql: ${sql} `);
           resolve(result);
-        } else if (fields) {
+        } else {
           buildResult(result, res, fields, maxRows, logger);
         }
         resolve(result);
@@ -126,14 +123,15 @@ export class MySqlRqDriver implements RqDriver {
   }
 }
 
-function buildResult(result: Result, res: any, fields: FieldInfo[], maxRows: number, logger: Logger) {
+function buildResult(result: Result, res: any, fields: FieldInfo[] | undefined, maxRows: number, logger: Logger) {
   // see also https://www.w3schools.com/nodejs/nodejs_mysql_select.asp
   result.headerSql = [];
   result.header = [];
   result.types = [];
   result.table = [];
-  result.rowsAffected = res.affectedRows;
-  logger.debug(`Rows affected: ${result.rowsAffected}`);
+  result.rowsAffected = res?.affectedRows || -1;
+
+  logger.info(`result-rows-affected: ${result.rowsAffected}`);
   if (fields) {
     for (const field of fields) {
       result.headerSql.push(field.name);
