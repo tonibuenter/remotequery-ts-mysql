@@ -8,15 +8,41 @@ import { createPool, FieldInfo, MysqlError, PoolConfig, PoolConnection } from 'm
 
 import * as camelCase from 'camelCase';
 import { consoleLogger, namedParameters2QuestionMarks } from './remotequery-mysql';
-import { Logger, Result, RqDriver, Simple } from './remotequery-types';
+import {
+  Driver,
+  ExceptionResult,
+  exceptionResult,
+  Logger,
+  Result,
+  ServiceEntry,
+  Simple,
+  toFirst
+} from './remotequery-common';
+import { toArr } from './utils';
 
-export class MySqlRqDriver implements RqDriver {
+export class MySqlDriver implements Driver {
   public pool;
   public logger: Logger = consoleLogger;
   public sqlLogger = consoleLogger;
+  public serviceEntrySql = '';
 
   constructor(stringOrPoolConfig: string | PoolConfig) {
     this.pool = createPool(stringOrPoolConfig);
+  }
+
+  public async getServiceEntry(serviceId: string): Promise<ServiceEntry | ExceptionResult> {
+    const result = await this.processSql(this.serviceEntrySql, { serviceId });
+    const raw = toFirst(result);
+    if (!raw) {
+      return exceptionResult(`No service entry found for ${serviceId}`);
+    }
+
+    return {
+      serviceId: raw.serviceId || 'notfound',
+      roles: toArr(raw.roles),
+      statements: raw.statements || '',
+      tags: new Set(toArr(raw.tags))
+    };
   }
 
   public getConnection(): Promise<PoolConnection | undefined> {
@@ -152,4 +178,4 @@ function buildResult(result: Result, res: any, fields: FieldInfo[] | undefined, 
   }
 }
 
-export default MySqlRqDriver;
+export default MySqlDriver;

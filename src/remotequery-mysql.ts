@@ -8,7 +8,7 @@ import { createPool, FieldInfo, MysqlError, Pool, PoolConnection } from 'mysql';
 
 import camelCase from 'camelCase';
 import { ConfigType, InitProps } from './types';
-import { Logger, ProcessSql, Result, Simple } from './remotequery-types';
+import { Logger, ProcessSql, Result, Simple } from './remotequery-common';
 
 export const consoleLogger: Logger = {
   // tslint:disable-next-line:no-console

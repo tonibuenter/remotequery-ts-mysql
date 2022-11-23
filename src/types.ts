@@ -1,5 +1,5 @@
 import { Pool, PoolConnection } from 'mysql';
-import { Logger } from './remotequery-types';
+import { Logger } from './remotequery-common';
 
 export type InitProps = { user: string; password: string; host: string; database: string };
 export type ConfigType = {

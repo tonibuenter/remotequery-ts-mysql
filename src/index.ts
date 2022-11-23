@@ -9,7 +9,7 @@ import {
 } from './remotequery-mysql';
 
 import type { ConfigType, InitProps } from './types';
-import MySqlRqDriver from './MySqlRqDriver';
+import MySqlDriver from './MySqlDriver';
 
 export {
   ConfigType,
@@ -21,5 +21,5 @@ export {
   isalnum,
   Config,
   InitProps,
-  MySqlRqDriver
+  MySqlDriver
 };
