@@ -26,6 +26,10 @@ export class MySqlDriver implements Driver {
   public sqlLogger = consoleLogger;
   public serviceEntrySql = '';
 
+  public setServiceEntrySql(sql: string) {
+    this.serviceEntrySql = sql;
+  }
+
   constructor(stringOrPoolConfig: string | PoolConfig) {
     this.pool = createPool(stringOrPoolConfig);
   }
