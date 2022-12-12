@@ -18,7 +18,7 @@ import {
   ServiceEntry,
   Simple,
   toFirst
-} from './remotequery-common';
+} from 'remotequery-ts-common';
 
 export interface MySqlDriverExtension extends Driver {
   setServiceEntrySql: (sql: string) => void;

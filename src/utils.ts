@@ -1,4 +1,4 @@
-import { Logger, Simple, trim } from './remotequery-common';
+import { Logger, Simple, trim } from 'remotequery-ts-common';
 
 export function toArr(ro: string | undefined): string[] {
   return (ro ? ro.split(/\s*,\s*/) : []).map((s) => trim(s));

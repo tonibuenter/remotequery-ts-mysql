@@ -34,6 +34,9 @@
     "camelcase": "^5.3.1",
     "mysql": "^2.18.1"
   },
+  "peerDependencies": {
+    "remotequery-ts-common": "^0.0.1"
+  },
   "devDependencies": {
     "@types/chai": "^4.3.0",
     "@types/mocha": "^9.0.0",
