@@ -61,8 +61,6 @@ export interface ResultX extends Result {
 
 export type EmtpyResult = Record<any, any>;
 
-export type CondResult = Result | EmtpyResult;
-
 export type StartBlockType = 'if' | 'if-else' | 'switch' | 'while' | 'foreach' | string;
 export type EndBlockType = 'fi' | 'done' | 'end' | string;
 export type RegistryType = 'Node' | string;
@@ -76,14 +74,6 @@ export type CommandsType = {
 export type LoggerLevel = 'debug' | 'info' | 'warn' | 'error';
 export type LoggerFun = (msg: string) => void;
 export type Logger = Record<LoggerLevel, LoggerFun>;
-
-export type ConfigType = {
-  getServiceEntrySql: string;
-  saveServiceEntry: string;
-  statementsPreprocessor: (statements: string) => string;
-  logger: Logger;
-  ignoredErrors: string[];
-};
 
 export const isError = (error: any): error is Error => {
   return typeof error.message === 'string' && typeof error.name === 'string';
@@ -144,3 +134,29 @@ export function trim(str: string): string {
   }
   return str.trim();
 }
+
+export function noop() {
+  // noop
+}
+
+export const consoleLogger: Logger = {
+  // tslint:disable-next-line:no-console
+  debug: (msg: string) => console.debug('debug', msg),
+  // tslint:disable-next-line:no-console
+  info: (msg: string) => console.info('info', msg),
+  // tslint:disable-next-line:no-console
+  warn: (msg: string) => console.warn('warn', msg),
+  // tslint:disable-next-line:no-console
+  error: (msg: string) => console.error('error', msg)
+};
+
+export const noopLogger: Logger = {
+  // tslint:disable-next-line:no-console
+  debug: noop,
+  // tslint:disable-next-line:no-console
+  info: noop,
+  // tslint:disable-next-line:no-console
+  warn: noop,
+  // tslint:disable-next-line:no-console
+  error: noop
+};

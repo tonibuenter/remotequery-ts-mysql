@@ -7,28 +7,33 @@
 import { createPool, FieldInfo, MysqlError, PoolConfig, PoolConnection } from 'mysql';
 
 import * as camelCase from 'camelCase';
-import { consoleLogger, namedParameters2QuestionMarks } from './remotequery-mysql';
+import { namedParameters2QuestionMarks, toArr } from './utils';
 import {
   Driver,
   ExceptionResult,
   exceptionResult,
   Logger,
+  noopLogger,
   Result,
   ServiceEntry,
   Simple,
   toFirst
 } from './remotequery-common';
-import { toArr } from './utils';
 
-export class MySqlDriver implements Driver {
-  public pool;
-  public logger: Logger = consoleLogger;
-  public sqlLogger = consoleLogger;
-  public serviceEntrySql = '';
+export interface MySqlDriverExtension extends Driver {
+  setServiceEntrySql: (sql: string) => void;
+  setSqlLogger: (logger: Logger) => void;
+  setLogger: (logger: Logger) => void;
+  returnConnection: (con: PoolConnection) => void;
+  getConnection: () => Promise<PoolConnection | undefined>;
+  end: () => void;
+}
 
-  public setServiceEntrySql(sql: string) {
-    this.serviceEntrySql = sql;
-  }
+export class MySqlDriver implements MySqlDriverExtension {
+  private readonly pool;
+  private logger: Logger = noopLogger;
+  private sqlLogger = noopLogger;
+  private serviceEntrySql = '';
 
   constructor(stringOrPoolConfig: string | PoolConfig) {
     this.pool = createPool(stringOrPoolConfig);
@@ -38,7 +43,9 @@ export class MySqlDriver implements Driver {
     const result = await this.processSql(this.serviceEntrySql, { serviceId });
     const raw = toFirst(result);
     if (!raw) {
-      return exceptionResult(`No service entry found for ${serviceId}`);
+      const msg = `No service entry found for ${serviceId}`;
+      this.logger.warn(msg);
+      return exceptionResult(msg);
     }
 
     return {
@@ -49,19 +56,36 @@ export class MySqlDriver implements Driver {
     };
   }
 
+  public async end() {
+    if (this.pool) {
+      this.pool.end(() => this.logger.info('Pool ended.'));
+    }
+  }
+
+  public setServiceEntrySql(sql: string) {
+    this.serviceEntrySql = sql;
+  }
+
+  public setSqlLogger(logger: Logger) {
+    this.sqlLogger = logger;
+  }
+
+  public setLogger(logger: Logger) {
+    this.logger = logger;
+  }
+
   public getConnection(): Promise<PoolConnection | undefined> {
-    const logger = this.logger;
     return new Promise((resolve, reject) => {
       if (!this.pool) {
         reject('Pool not initialized');
       } else {
-        this.pool.getConnection(function (err: MysqlError | null, conn: PoolConnection) {
+        this.pool.getConnection((err: MysqlError | null, conn: PoolConnection) => {
           if (err) {
             reject(err);
             return;
           }
           if (conn) {
-            logger.debug('getConnection DONE');
+            this.logger.debug('getConnection DONE');
           }
           resolve(conn);
         });
@@ -69,7 +93,7 @@ export class MySqlDriver implements Driver {
     });
   }
 
-  public returnConnection(con: PoolConnection) {
+  public returnConnection(con: PoolConnection): void {
     try {
       if (this.pool) {
         con.release();
@@ -91,7 +115,7 @@ export class MySqlDriver implements Driver {
       }
     } catch (err: any) {
       this.logger.info(err.stack);
-      result = { exception: err.message, stack: err.stack, hasMore: false };
+      result = { exception: err.message, stack: err.stack };
     } finally {
       if (con) {
         this.returnConnection(con);
@@ -100,14 +124,16 @@ export class MySqlDriver implements Driver {
     return result;
   }
 
-  public async processSqlDirect(sql: string, values: any, maxRows: number): Promise<Result> {
+  public async processSqlDirect(sql: string, values: any = null, maxRows = 10000): Promise<Result> {
     let con: PoolConnection | undefined, result;
     try {
       con = await this.getConnection();
       if (con) {
         result = await this.processSqlQuery(con, sql, values, maxRows);
       } else {
-        result = { exception: 'No connection received!' };
+        const exception = 'No connection received!';
+        this.logger.warn(exception);
+        result = { exception };
       }
     } catch (err: any) {
       this.logger.error(err.stack);
@@ -120,7 +146,12 @@ export class MySqlDriver implements Driver {
     return result;
   }
 
-  public processSql_con(con: PoolConnection, sql: string, parameters = {}, maxRows = 10000): Promise<Result> {
+  public processSql_con(
+    con: PoolConnection,
+    sql: string,
+    parameters: Record<string, Simple> = {},
+    maxRows = 10000
+  ): Promise<Result> {
     this.sqlLogger.info(`sql: ${sql}`);
     const { sqlQm, parametersUsed, values } = namedParameters2QuestionMarks(sql, parameters);
 
@@ -129,31 +160,28 @@ export class MySqlDriver implements Driver {
     return this.processSqlQuery(con, sqlQm, valuesMapped, maxRows);
   }
 
-  public processSqlQuery(con: PoolConnection, sql: string, values: any[], maxRows: number): Promise<Result> {
-    const logger = this.logger;
+  public processSqlQuery(con: PoolConnection, sql: string, values: any, maxRows: number): Promise<Result> {
     return new Promise((resolve) => {
-      con.query(sql, values, processResult);
-
-      function processResult(err: MysqlError | null, res?: any, fields?: FieldInfo[]) {
+      con.query(sql, values, (err: MysqlError | null, res?: any, fields?: FieldInfo[]) => {
         const result: Result = { from: 0, hasMore: false, rowsAffected: -1 };
         result.from = 0;
         result.hasMore = false;
-        logger.debug(`${sql} DONE`);
+        this.logger.debug(`${sql} DONE`);
         if (err) {
           result.exception = err.message;
           result.stack = err.stack;
-          logger.warn(`${err.message}\nsql: ${sql} `);
+          this.logger.warn(`${err.message}\n sql: ${sql} `);
           resolve(result);
         } else {
-          buildResult(result, res, fields, maxRows, logger);
+          fillResult(result, res, fields, maxRows, this.logger);
         }
         resolve(result);
-      }
+      });
     });
   }
 }
 
-function buildResult(result: Result, res: any, fields: FieldInfo[] | undefined, maxRows: number, logger: Logger) {
+function fillResult(result: Result, res: any, fields: FieldInfo[] | undefined, maxRows: number, logger: Logger) {
   // see also https://www.w3schools.com/nodejs/nodejs_mysql_select.asp
   result.headerSql = [];
   result.header = [];
