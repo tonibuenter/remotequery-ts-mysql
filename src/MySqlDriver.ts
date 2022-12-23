@@ -17,7 +17,8 @@ import {
   Result,
   ServiceEntry,
   Simple,
-  toFirst
+  toFirst,
+  Context
 } from 'remotequery-ts-common';
 
 export interface MySqlDriverExtension extends Driver {
@@ -104,7 +105,11 @@ export class MySqlDriver implements MySqlDriverExtension {
     this.logger.debug(`returnConnection DONE`);
   }
 
-  public async processSql(sql: string, parameters?: Record<string, Simple>, context?: any): Promise<Result> {
+  public async processSql(
+    sql: string,
+    parameters?: Record<string, Simple>,
+    context?: Partial<Context>
+  ): Promise<Result> {
     let con, result: Result;
     try {
       con = await this.getConnection();

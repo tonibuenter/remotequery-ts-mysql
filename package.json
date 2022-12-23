@@ -1,9 +1,9 @@
 {
   "name": "remotequery-ts-mysql",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "Remotequery MySql Driver for TypeScript",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test": "mocha -r ts-node/register 'test/**/*.ts'  --exit",
     "prepare": "npm run build",
