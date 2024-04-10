@@ -9,6 +9,7 @@ import { createPool, FieldInfo, MysqlError, PoolConfig, PoolConnection } from 'm
 import * as camelCase from 'camelCase';
 import { namedParameters2QuestionMarks, toArr } from './utils';
 import {
+  Context,
   Driver,
   ExceptionResult,
   exceptionResult,
@@ -17,17 +18,14 @@ import {
   Result,
   ServiceEntry,
   Simple,
-  toFirst,
-  Context
+  toFirst
 } from 'remotequery-ts-common';
 
-export interface MySqlDriverExtension extends Driver {
+export interface MySqlDriverExtension extends Driver<PoolConnection> {
   setServiceEntrySql: (sql: string) => void;
   setSqlLogger: (logger: Logger) => void;
   setLogger: (logger: Logger) => void;
-  returnConnection: (con: PoolConnection) => void;
-  getConnection: () => Promise<PoolConnection | undefined>;
-  end: () => void;
+  openTransactions: () => string[];
 }
 
 export class MySqlDriver implements MySqlDriverExtension {
@@ -35,6 +33,8 @@ export class MySqlDriver implements MySqlDriverExtension {
   private logger: Logger = noopLogger;
   private sqlLogger = noopLogger;
   private serviceEntrySql = '';
+  private readonly txConnections: Record<string, PoolConnection> = {};
+  private txCounter = 0;
 
   constructor(stringOrPoolConfig: string | PoolConfig) {
     this.pool = createPool(stringOrPoolConfig);
@@ -57,7 +57,15 @@ export class MySqlDriver implements MySqlDriverExtension {
     };
   }
 
-  public async end() {
+  public async destroy() {
+    for (const txId of Object.keys(this.txConnections)) {
+      try {
+        await this.rollbackTransaction(txId);
+      } catch (e) {
+        this.logger.warn(`Could not rollback ${txId} while destroying MySqlDriver!`);
+      }
+    }
+
     if (this.pool) {
       this.pool.end(() => this.logger.info('Pool ended.'));
     }
@@ -105,14 +113,52 @@ export class MySqlDriver implements MySqlDriverExtension {
     this.logger.debug(`returnConnection DONE`);
   }
 
+  public async startTransaction(): Promise<string> {
+    const txId = `txCon${this.txCounter++}`;
+    const con = await this.getConnection();
+    if (con) {
+      this.txConnections[txId] = con;
+      await this.processSqlQuery(con, 'BEGIN', null, 0);
+      return txId;
+    }
+    throw new Error('Could not get a connection to start a transaction!');
+  }
+
+  public openTransactions(): string[] {
+    return Object.keys(this.txConnections);
+  }
+
+  public async commitTransaction(txId: string): Promise<void> {
+    const con = this.txConnections[txId];
+    if (con) {
+      await this.processSqlQuery(con, 'COMMIT', null, 0);
+      this.returnConnection(con);
+      delete this.txConnections[txId];
+      return;
+    }
+    throw new Error(`Tried to COMMIT. No connection available for ${txId}!`);
+  }
+
+  public async rollbackTransaction(txId: string): Promise<void> {
+    const con = this.txConnections[txId];
+    if (con) {
+      await this.processSqlQuery(con, 'ROLLBACK', null, 0);
+      this.returnConnection(con);
+      delete this.txConnections[txId];
+      return;
+    }
+    throw new Error(`Tried to ROLLBACK. No connection available for ${txId}!`);
+  }
+
   public async processSql(
     sql: string,
     parameters?: Record<string, Simple>,
     context?: Partial<Context>
   ): Promise<Result> {
     let con, result: Result;
+    const txCon = this.txConnections[context?.txId || ''];
     try {
-      con = await this.getConnection();
+      con = txCon || (await this.getConnection());
       if (con) {
         result = await this.processSql_con(con, sql, parameters, context?.maxRows);
       } else {
@@ -122,7 +168,7 @@ export class MySqlDriver implements MySqlDriverExtension {
       this.logger.info(err.stack);
       result = { exception: err.message, stack: err.stack };
     } finally {
-      if (con) {
+      if (con && !txCon) {
         this.returnConnection(con);
       }
     }
@@ -166,24 +212,28 @@ export class MySqlDriver implements MySqlDriverExtension {
   }
 
   public processSqlQuery(con: PoolConnection, sql: string, values: any, maxRows: number): Promise<Result> {
-    return new Promise((resolve) => {
-      con.query(sql, values, (err: MysqlError | null, res?: any, fields?: FieldInfo[]) => {
-        const result: Result = { from: 0, hasMore: false, rowsAffected: -1 };
-        result.from = 0;
-        result.hasMore = false;
-        this.logger.debug(`${sql} DONE`);
-        if (err) {
-          result.exception = err.message;
-          result.stack = err.stack;
-          this.logger.warn(`${err.message}\n sql: ${sql} `);
-          resolve(result);
-        } else {
-          fillResult(result, res, fields, maxRows, this.logger);
-        }
-        resolve(result);
-      });
-    });
+    return promiseQuery(con, sql, values, maxRows, this.logger);
   }
+}
+
+function promiseQuery(con: PoolConnection, sql: string, values: any, maxRows: number, logger: Logger): Promise<Result> {
+  return new Promise((resolve) => {
+    con.query(sql, values, (err: MysqlError | null, res?: any, fields?: FieldInfo[]) => {
+      const result: Result = { from: 0, hasMore: false, rowsAffected: -1 };
+      result.from = 0;
+      result.hasMore = false;
+      logger.debug(`${sql} DONE`);
+      if (err) {
+        result.exception = err.message;
+        result.stack = err.stack;
+        logger.warn(`${err.message}\n sql: ${sql} `);
+        resolve(result);
+      } else {
+        fillResult(result, res, fields, maxRows, logger);
+      }
+      resolve(result);
+    });
+  });
 }
 
 function fillResult(result: Result, res: any, fields: FieldInfo[] | undefined, maxRows: number, logger: Logger) {
