@@ -17,7 +17,7 @@ import {
   noopLogger,
   Result,
   ServiceEntry,
-  Simple,
+  SRecord,
   toFirst
 } from 'remotequery-ts-common';
 
@@ -153,11 +153,7 @@ export class MySqlDriver implements MySqlDriverExtension {
     throw new Error(`Tried to ROLLBACK. No connection available for ${txId}!`);
   }
 
-  public async processSql(
-    sql: string,
-    parameters?: Record<string, Simple>,
-    context?: Partial<Context>
-  ): Promise<Result> {
+  public async processSql(sql: string, parameters?: SRecord, context?: Partial<Context>): Promise<Result> {
     let con, result: Result;
     const txCon = this.txConnections[context?.txId || ''];
     try {
@@ -200,12 +196,7 @@ export class MySqlDriver implements MySqlDriverExtension {
     return result;
   }
 
-  public processSql_con(
-    con: PoolConnection,
-    sql: string,
-    parameters: Record<string, Simple> = {},
-    maxRows = 10000
-  ): Promise<Result> {
+  public processSql_con(con: PoolConnection, sql: string, parameters: SRecord = {}, maxRows = 10000): Promise<Result> {
     this.sqlLogger.info(`sql: ${sql}`);
     const { sqlQm, parametersUsed, values } = namedParameters2QuestionMarks(sql, parameters);
 
@@ -257,7 +248,7 @@ function fillResult(result: Result, res: any, fields: FieldInfo[] | undefined, m
     for (const row of res) {
       const trow = [];
       for (const head of result.headerSql) {
-        trow.push(row[head]);
+        trow.push((row[head] ?? '').toString());
       }
       if (maxRows === result.table.length) {
         result.hasMore = true;
