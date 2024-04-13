@@ -21,6 +21,9 @@ import {
   toFirst
 } from 'remotequery-ts-common';
 
+let _camelCaseConvertion = true;
+export const setCamelCaseConversion = (b: boolean) => (_camelCaseConvertion = b);
+
 export interface MySqlDriverExtension extends Driver<PoolConnection> {
   setServiceEntrySql: (sql: string) => void;
   setSqlLogger: (logger: Logger) => void;
@@ -248,7 +251,7 @@ function fillResult(result: Result, res: any, fields: FieldInfo[] | undefined, m
   if (fields) {
     for (const field of fields) {
       result.headerSql.push(field.name);
-      result.header.push(camelCase(field.name));
+      result.header.push(_camelCaseConvertion ? camelCase(field.name) : field.name);
       result.types.push(field.type ? field.type.toString() : '');
     }
     for (const row of res) {
