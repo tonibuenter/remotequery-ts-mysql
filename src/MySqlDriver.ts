@@ -15,10 +15,11 @@ import {
   exceptionResult,
   Logger,
   noopLogger,
+  PRecord,
   Result,
   ServiceEntry,
-  SRecord,
-  toFirst
+  toFirst,
+  toSRecord
 } from 'remotequery-ts-common';
 
 let _camelCaseConvertion = true;
@@ -153,7 +154,7 @@ export class MySqlDriver implements MySqlDriverExtension {
     throw new Error(`Tried to ROLLBACK. No connection available for ${txId}!`);
   }
 
-  public async processSql(sql: string, parameters?: SRecord, context?: Partial<Context>): Promise<Result> {
+  public async processSql(sql: string, parameters?: PRecord, context?: Partial<Context>): Promise<Result> {
     let con, result: Result;
     const txCon = this.txConnections[context?.txId || ''];
     try {
@@ -196,9 +197,9 @@ export class MySqlDriver implements MySqlDriverExtension {
     return result;
   }
 
-  public processSql_con(con: PoolConnection, sql: string, parameters: SRecord = {}, maxRows = 10000): Promise<Result> {
+  public processSql_con(con: PoolConnection, sql: string, parameters: PRecord = {}, maxRows = 10000): Promise<Result> {
     this.sqlLogger.info(`sql: ${sql}`);
-    const { sqlQm, parametersUsed, values } = namedParameters2QuestionMarks(sql, parameters);
+    const { sqlQm, parametersUsed, values } = namedParameters2QuestionMarks(sql, toSRecord(parameters));
 
     const valuesMapped = values.map((v) => (v === undefined || v === null ? '' : v));
     this.sqlLogger.info(`sql-parameters-used: ${JSON.stringify(parametersUsed)}`);
